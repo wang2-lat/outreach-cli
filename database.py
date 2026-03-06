@@ -21,9 +21,22 @@ class Database:
             )
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                github_url TEXT NOT NULL UNIQUE,
+                repo TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                context_summary TEXT,
+                reply_text TEXT NOT NULL,
+                ai_provider TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
         conn.close()
-    
+
     def add_post(self, url: str, platform: str, title: str) -> int:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -80,9 +93,9 @@ class Database:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT 
+            SELECT
                 id, url, platform, title, clicks, conversions, created_at,
-                CASE 
+                CASE
                     WHEN clicks > 0 THEN (conversions * 100.0 / clicks)
                     ELSE 0
                 END as ctr
@@ -90,8 +103,89 @@ class Database:
             WHERE created_at >= datetime('now', '-' || ? || ' days')
             ORDER BY created_at DESC
         """, (days,))
-        
+
         posts = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
+
         return posts
+
+    # --- Reply tracking methods ---
+
+    def add_reply(self, github_url: str, repo: str, event_type: str,
+                  context_summary: str, reply_text: str, ai_provider: str) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """INSERT INTO replies
+               (github_url, repo, event_type, context_summary, reply_text, ai_provider)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (github_url, repo, event_type, context_summary, reply_text, ai_provider),
+        )
+
+        reply_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return reply_id
+
+    def has_replied(self, github_url: str) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM replies WHERE github_url = ?", (github_url,))
+        exists = cursor.fetchone() is not None
+        conn.close()
+        return exists
+
+    def get_recent_replies(self, limit: int = 20):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, github_url, repo, event_type, context_summary,
+                   reply_text, ai_provider, created_at
+            FROM replies
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,))
+
+        replies = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return replies
+
+    def get_reply_stats(self, days: int = 7):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) as total,
+                   COUNT(DISTINCT repo) as repos
+            FROM replies
+            WHERE created_at >= datetime('now', '-' || ? || ' days')
+        """, (days,))
+        totals = dict(cursor.fetchone())
+
+        cursor.execute("""
+            SELECT event_type, COUNT(*) as count
+            FROM replies
+            WHERE created_at >= datetime('now', '-' || ? || ' days')
+            GROUP BY event_type
+        """, (days,))
+        by_type = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute("""
+            SELECT repo, COUNT(*) as count
+            FROM replies
+            WHERE created_at >= datetime('now', '-' || ? || ' days')
+            GROUP BY repo ORDER BY count DESC LIMIT 10
+        """, (days,))
+        by_repo = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return {
+            "total": totals["total"],
+            "repos": totals["repos"],
+            "by_type": by_type,
+            "by_repo": by_repo,
+        }

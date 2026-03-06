@@ -1,4 +1,6 @@
+import os
 import typer
+from typing import List
 from rich.console import Console
 from rich.table import Table
 from database import Database
@@ -124,6 +126,174 @@ def template(
     console.print(f"Title: {template['example_title']}")
     console.print(f"Performance: {template['example_clicks']} clicks, {template['example_ctr']:.1f}% CTR\n")
     console.print("[dim]Tip: Posts with clear value propositions and specific use cases tend to perform better.[/dim]")
+
+# ---------------------------------------------------------------------------
+# Auto-reply commands
+# ---------------------------------------------------------------------------
+
+def _get_orchestrator(provider: str, style: str, exclude: List[str], dry_run: bool = False):
+    """Create a ReplyOrchestrator with proper env-var checks."""
+    from github_reply import ReplyOrchestrator, AIProviderError
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        console.print("[red]Error:[/red] GITHUB_TOKEN environment variable is not set")
+        console.print("[dim]Create a token at https://github.com/settings/tokens with 'notifications' and 'repo' scopes[/dim]")
+        raise typer.Exit(1)
+
+    try:
+        orch = ReplyOrchestrator(
+            db=db,
+            github_token=token,
+            ai_provider=provider,
+            style=style,
+            excluded_repos=exclude,
+            dry_run=dry_run,
+        )
+    except AIProviderError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    return orch
+
+
+@app.command()
+def reply(
+    provider: str = typer.Option("deepseek", "--provider", "-ai", help="AI provider: deepseek or anthropic"),
+    style: str = typer.Option("helpful", "--style", "-s", help="Reply style: helpful, concise, technical"),
+    exclude: List[str] = typer.Option([], "--exclude", "-x", help="Repos to exclude (owner/repo)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview replies without posting"),
+):
+    """Check GitHub notifications and auto-reply with AI"""
+    orch = _get_orchestrator(provider, style, exclude, dry_run)
+
+    with console.status("[bold green]Checking notifications..."):
+        results = orch.process_notifications()
+
+    if not results:
+        console.print("[yellow]No actionable notifications found.[/yellow]")
+        return
+
+    table = Table(title="Auto-Reply Results")
+    table.add_column("Repo", style="cyan")
+    table.add_column("Title", style="white")
+    table.add_column("Status", style="magenta")
+
+    for r in results:
+        status = r["status"]
+        status_style = {
+            "replied": "[green]replied[/green]",
+            "dry_run": "[blue]dry-run[/blue]",
+            "skipped": "[yellow]skipped[/yellow]",
+            "already_replied": "[dim]already replied[/dim]",
+            "self_skip": "[dim]self-skip[/dim]",
+            "ai_skip": "[dim]ai-skip[/dim]",
+            "excluded": "[dim]excluded[/dim]",
+            "error": f"[red]error: {r.get('error', '')[:40]}[/red]",
+        }.get(status, status)
+
+        table.add_row(
+            r.get("repo", ""),
+            (r.get("title", "")[:50] + "...") if len(r.get("title", "")) > 50 else r.get("title", ""),
+            status_style,
+        )
+
+    console.print(table)
+
+    # Show dry-run previews
+    if dry_run:
+        for r in results:
+            if r["status"] == "dry_run" and r.get("reply"):
+                console.print(f"\n[bold cyan]{r['repo']}[/bold cyan] — {r['title']}")
+                console.print(r["reply"])
+                console.print("---")
+
+
+@app.command("reply-watch")
+def reply_watch(
+    interval: int = typer.Option(5, "--interval", "-i", help="Minutes between checks"),
+    provider: str = typer.Option("deepseek", "--provider", "-ai", help="AI provider"),
+    style: str = typer.Option("helpful", "--style", "-s", help="Reply style"),
+    exclude: List[str] = typer.Option([], "--exclude", "-x", help="Repos to exclude"),
+):
+    """Continuously monitor GitHub notifications and auto-reply"""
+    orch = _get_orchestrator(provider, style, exclude)
+
+    console.print(f"[bold green]Watching notifications every {interval} min[/bold green] (Ctrl+C to stop)")
+
+    def on_cycle(results):
+        replied = [r for r in results if r.get("status") == "replied"]
+        if replied:
+            for r in replied:
+                console.print(f"  [green]Replied[/green] {r['repo']} — {r['title']}")
+        elif results:
+            console.print(f"  [dim]{len(results)} notifications processed, none needed a reply[/dim]")
+        else:
+            console.print("  [dim]No new notifications[/dim]")
+
+    try:
+        orch.watch(interval_minutes=interval, on_cycle=on_cycle)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopped watching.[/yellow]")
+
+
+@app.command("reply-history")
+def reply_history(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of replies to show"),
+):
+    """Show recent auto-reply history"""
+    replies = db.get_recent_replies(limit)
+
+    if not replies:
+        console.print("[yellow]No replies yet. Run 'reply' to get started.[/yellow]")
+        return
+
+    table = Table(title="Recent Auto-Replies")
+    table.add_column("ID", style="cyan")
+    table.add_column("Repo", style="magenta")
+    table.add_column("Type", style="blue")
+    table.add_column("Summary", style="white")
+    table.add_column("AI", style="dim")
+    table.add_column("Date", style="dim")
+
+    for r in replies:
+        summary = r["context_summary"] or ""
+        table.add_row(
+            str(r["id"]),
+            r["repo"],
+            r["event_type"],
+            (summary[:40] + "...") if len(summary) > 40 else summary,
+            r["ai_provider"],
+            r["created_at"][:16],
+        )
+
+    console.print(table)
+
+
+@app.command("reply-stats")
+def reply_stats(
+    days: int = typer.Option(7, "--days", "-d", help="Number of days to analyze"),
+):
+    """Show auto-reply statistics"""
+    stats = db.get_reply_stats(days)
+
+    console.print(f"\n[bold]Auto-Reply Stats — Last {days} Days[/bold]\n")
+    console.print(f"Total Replies: {stats['total']}")
+    console.print(f"Repos Interacted: {stats['repos']}")
+
+    if stats["by_type"]:
+        console.print("\n[bold]By Event Type:[/bold]")
+        for t in stats["by_type"]:
+            console.print(f"  {t['event_type']}: {t['count']}")
+
+    if stats["by_repo"]:
+        table = Table(title="Top Repos by Replies")
+        table.add_column("Repo", style="cyan")
+        table.add_column("Replies", justify="right", style="green")
+        for r in stats["by_repo"]:
+            table.add_row(r["repo"], str(r["count"]))
+        console.print(table)
+
 
 if __name__ == "__main__":
     app()
