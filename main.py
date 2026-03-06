@@ -295,5 +295,194 @@ def reply_stats(
         console.print(table)
 
 
+# ---------------------------------------------------------------------------
+# Scout commands — proactive outreach
+# ---------------------------------------------------------------------------
+
+def _get_scanner(provider: str, style: str, queries: List[str],
+                 max_replies_hour: int, max_replies_day: int,
+                 max_comments: int, max_age: int,
+                 max_per_repo: int, cooldown: int, dry_run: bool = False):
+    """Create an OutreachScanner with proper env-var checks."""
+    from github_reply import OutreachScanner, AIProviderError
+
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token:
+        console.print("[red]Error:[/red] GITHUB_TOKEN environment variable is not set")
+        raise typer.Exit(1)
+
+    try:
+        scanner = OutreachScanner(
+            db=db,
+            github_token=token,
+            ai_provider=provider,
+            style=style,
+            search_queries=queries or None,
+            max_replies_per_hour=max_replies_hour,
+            max_replies_per_day=max_replies_day,
+            max_comments_on_issue=max_comments,
+            max_issue_age_hours=max_age,
+            max_per_repo_per_day=max_per_repo,
+            cooldown_seconds=cooldown,
+            dry_run=dry_run,
+        )
+    except AIProviderError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    return scanner
+
+
+@app.command()
+def scout(
+    provider: str = typer.Option("deepseek", "--provider", "-ai", help="AI provider: deepseek or anthropic"),
+    style: str = typer.Option("helpful", "--style", "-s", help="Reply style"),
+    query: List[str] = typer.Option([], "--query", "-q", help="Custom search query (can repeat)"),
+    max_replies_hour: int = typer.Option(5, "--max-replies-hour", help="Max replies per hour"),
+    max_replies_day: int = typer.Option(20, "--max-replies-day", help="Max replies per day"),
+    max_comments: int = typer.Option(5, "--max-comments", help="Skip issues with more comments"),
+    max_age: int = typer.Option(48, "--max-age", help="Max issue age in hours"),
+    max_per_repo: int = typer.Option(2, "--max-per-repo", help="Max replies per repo per day"),
+    cooldown: int = typer.Option(30, "--cooldown", help="Seconds between posts"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without posting"),
+):
+    """Search GitHub for issues and offer helpful suggestions"""
+    scanner = _get_scanner(provider, style, query, max_replies_hour,
+                           max_replies_day, max_comments, max_age,
+                           max_per_repo, cooldown, dry_run)
+
+    with console.status("[bold green]Scanning GitHub for issues to help with..."):
+        results = scanner.scan_once()
+
+    if not results:
+        console.print("[yellow]No issues found to help with.[/yellow]")
+        return
+
+    table = Table(title="Scout Results")
+    table.add_column("Repo", style="cyan")
+    table.add_column("Issue", style="white")
+    table.add_column("Status", style="magenta")
+
+    for r in results:
+        status = r.get("status", "")
+        status_style = {
+            "replied": "[green]replied[/green]",
+            "dry_run": "[blue]dry-run[/blue]",
+            "skipped": "[yellow]skipped[/yellow]",
+            "hourly_limit": "[red]hourly limit[/red]",
+            "daily_limit": "[red]daily limit[/red]",
+            "error": f"[red]error: {r.get('error', '')[:30]}[/red]",
+        }.get(status, status)
+
+        table.add_row(
+            r.get("repo", ""),
+            (r.get("title", "")[:50] + "...") if len(r.get("title", "")) > 50 else r.get("title", ""),
+            status_style,
+        )
+
+    console.print(table)
+
+    # Show dry-run previews
+    if dry_run:
+        for r in results:
+            if r.get("status") == "dry_run" and r.get("reply"):
+                console.print(f"\n[bold cyan]{r['repo']}[/bold cyan] — {r['title']}")
+                console.print(f"[dim]{r.get('html_url', '')}[/dim]")
+                console.print(r["reply"])
+                console.print("---")
+
+
+@app.command("scout-watch")
+def scout_watch(
+    interval: int = typer.Option(10, "--interval", "-i", help="Minutes between scans"),
+    provider: str = typer.Option("deepseek", "--provider", "-ai", help="AI provider"),
+    style: str = typer.Option("helpful", "--style", "-s", help="Reply style"),
+    query: List[str] = typer.Option([], "--query", "-q", help="Custom search query"),
+    max_replies_hour: int = typer.Option(5, "--max-replies-hour", help="Max replies per hour"),
+    max_replies_day: int = typer.Option(20, "--max-replies-day", help="Max replies per day"),
+    max_comments: int = typer.Option(5, "--max-comments", help="Skip issues with more comments"),
+    max_age: int = typer.Option(48, "--max-age", help="Max issue age in hours"),
+    max_per_repo: int = typer.Option(2, "--max-per-repo", help="Max replies per repo per day"),
+    cooldown: int = typer.Option(30, "--cooldown", help="Seconds between posts"),
+):
+    """Continuously scan GitHub and help people (runs forever)"""
+    scanner = _get_scanner(provider, style, query, max_replies_hour,
+                           max_replies_day, max_comments, max_age,
+                           max_per_repo, cooldown)
+
+    console.print(f"[bold green]Scouting every {interval} min[/bold green] (Ctrl+C to stop)")
+
+    def on_cycle(results):
+        replied = [r for r in results if r.get("status") == "replied"]
+        if replied:
+            for r in replied:
+                console.print(f"  [green]Helped[/green] {r['repo']} — {r['title']}")
+        elif results:
+            skipped = len([r for r in results if r.get("status") == "skipped"])
+            console.print(f"  [dim]{len(results)} issues checked, {skipped} skipped[/dim]")
+        else:
+            console.print("  [dim]No new issues found[/dim]")
+
+    try:
+        scanner.watch(interval_minutes=interval, on_cycle=on_cycle)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopped scouting.[/yellow]")
+
+
+@app.command("scout-history")
+def scout_history(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of records to show"),
+):
+    """Show recent scout activity"""
+    rows = db.get_recent_scout_issues(limit)
+
+    if not rows:
+        console.print("[yellow]No scout activity yet. Run 'scout' to get started.[/yellow]")
+        return
+
+    table = Table(title="Recent Scout Activity")
+    table.add_column("ID", style="cyan")
+    table.add_column("Repo", style="magenta")
+    table.add_column("#", style="blue")
+    table.add_column("Title", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Date", style="dim")
+
+    for r in rows:
+        title = r["title"] or ""
+        table.add_row(
+            str(r["id"]),
+            r["repo"],
+            str(r["issue_number"]),
+            (title[:35] + "...") if len(title) > 35 else title,
+            r["status"],
+            r["created_at"][:16],
+        )
+
+    console.print(table)
+
+
+@app.command("scout-stats")
+def scout_stats(
+    days: int = typer.Option(7, "--days", "-d", help="Number of days to analyze"),
+):
+    """Show scout statistics"""
+    stats = db.get_scout_stats(days)
+
+    console.print(f"\n[bold]Scout Stats — Last {days} Days[/bold]\n")
+    console.print(f"Total Scanned: {stats['total']}")
+    console.print(f"Replied: {stats['replied'] or 0}")
+    console.print(f"Skipped: {stats['skipped'] or 0}")
+    console.print(f"Repos Helped: {stats['repos']}")
+
+    if stats.get("by_repo"):
+        table = Table(title="Top Repos Helped")
+        table.add_column("Repo", style="cyan")
+        table.add_column("Replies", justify="right", style="green")
+        for r in stats["by_repo"]:
+            table.add_row(r["repo"], str(r["count"]))
+        console.print(table)
+
+
 if __name__ == "__main__":
     app()

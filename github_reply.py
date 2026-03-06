@@ -10,7 +10,9 @@ import json
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 
@@ -166,6 +168,64 @@ class GitHubClient:
 
         return result
 
+    def search_issues(self, query: str, per_page: int = 30,
+                      sort: str = "created", order: str = "desc") -> list[dict]:
+        """Search GitHub issues via the Search API."""
+        encoded_q = urllib.parse.quote(query)
+        url = f"/search/issues?q={encoded_q}&sort={sort}&order={order}&per_page={per_page}"
+        resp = self._request("GET", url)
+        return resp.get("items", []) if isinstance(resp, dict) else []
+
+    def get_issue_context(self, issue_item: dict) -> dict:
+        """Build a context dict from a search-result issue item.
+
+        Output format matches get_thread_context() so AIProvider can consume it.
+        """
+        repo_full = issue_item.get("repository", {}).get("full_name", "")
+        if not repo_full and "/" in (issue_item.get("repository_url") or ""):
+            # Extract from repository_url like https://api.github.com/repos/owner/repo
+            repo_full = "/".join(issue_item["repository_url"].rsplit("/", 2)[-2:])
+
+        result = {
+            "repo": repo_full,
+            "subject_type": "Issue",
+            "title": issue_item.get("title", ""),
+            "body": issue_item.get("body") or "",
+            "comments": [],
+            "diff": None,
+            "readme_snippet": None,
+            "url": issue_item.get("url", ""),
+            "html_url": issue_item.get("html_url", ""),
+            "comments_url": issue_item.get("comments_url", ""),
+        }
+
+        # Fetch recent comments
+        if result["comments_url"]:
+            try:
+                comments = self._request(
+                    "GET", f"{result['comments_url']}?per_page=10&sort=created&direction=desc"
+                )
+                result["comments"] = [
+                    {"user": c["user"]["login"], "body": c["body"]}
+                    for c in (comments if isinstance(comments, list) else [])
+                ]
+            except GitHubAPIError:
+                pass
+
+        # Fetch repo README snippet
+        if repo_full:
+            try:
+                readme = self._request(
+                    "GET", f"/repos/{repo_full}/readme",
+                    extra_headers={"Accept": "application/vnd.github.raw"},
+                )
+                if isinstance(readme, str):
+                    result["readme_snippet"] = readme[:2000]
+            except GitHubAPIError:
+                pass
+
+        return result
+
     def post_comment(self, comments_url: str, body: str):
         self._request("POST", comments_url, body={"body": body})
 
@@ -209,12 +269,14 @@ class AIProvider:
             env_name = "ANTHROPIC_API_KEY" if self.provider == "anthropic" else "DEEPSEEK_API_KEY"
             raise AIProviderError(f"{env_name} environment variable is not set")
 
-    def generate_reply(self, context: dict, style: str = "helpful") -> str:
+    def generate_reply(self, context: dict, style: str = "helpful",
+                       system_prompt_template: str = None) -> str:
         readme_context = ""
         if context.get("readme_snippet"):
             readme_context = f"Repo description (README excerpt):\n{context['readme_snippet'][:300]}"
 
-        system = SYSTEM_PROMPT.format(repo=context["repo"], readme_context=readme_context)
+        template = system_prompt_template or SYSTEM_PROMPT
+        system = template.format(repo=context["repo"], readme_context=readme_context)
         system += f"\nReply style: {style}"
 
         user_msg = self._build_user_message(context)
@@ -410,6 +472,207 @@ class ReplyOrchestrator:
         while True:
             try:
                 results = self.process_notifications()
+                if on_cycle:
+                    on_cycle(results)
+            except RateLimitError as exc:
+                wait = max(exc.reset_timestamp - int(time.time()) + 5, 10)
+                if on_cycle:
+                    on_cycle([{"status": "rate_limited", "wait_seconds": wait}])
+                time.sleep(wait)
+                continue
+            except KeyboardInterrupt:
+                break
+
+            time.sleep(interval_minutes * 60)
+
+
+# ---------------------------------------------------------------------------
+# Scout: proactive issue search and reply
+# ---------------------------------------------------------------------------
+
+SCOUT_SYSTEM_PROMPT = """\
+You are a helpful and knowledgeable developer who enjoys helping others solve \
+problems on GitHub — a "热心群众" (enthusiastic community helper).
+
+You are reviewing an open issue in the repo: {repo}
+{readme_context}
+
+Rules:
+- Only reply if you can provide genuinely useful, actionable help.
+- Suggest concrete solutions, code snippets, debugging steps, or relevant docs.
+- If it's a question, answer it clearly and directly.
+- If it's a bug report, suggest possible causes and workarounds.
+- Be respectful and encouraging. People are volunteering their time.
+- Keep your reply concise: aim for 3-10 sentences.
+- Match the language of the issue (English, Chinese, etc.).
+- DO NOT give generic advice. Be specific to the problem.
+- DO NOT advertise, self-promote, or link to unrelated projects.
+- If you cannot add value (unclear issue, already resolved, needs domain \
+  knowledge you lack, or already has good answers), reply with exactly \
+  "SKIP" and nothing else.
+- End your reply with:
+  > 🤖 This suggestion was generated by an AI assistant. Please verify before applying.
+"""
+
+DEFAULT_SCOUT_QUERIES = [
+    'is:issue is:open label:"help wanted" created:>{date}',
+    'is:issue is:open label:question created:>{date}',
+    'is:issue is:open label:bug created:>{date}',
+    'is:issue is:open label:"good first issue" created:>{date}',
+]
+
+
+class OutreachScanner:
+    """Proactively search GitHub for issues and offer helpful replies."""
+
+    def __init__(self, db, github_token: str, ai_provider: str = "deepseek",
+                 ai_api_key: str = None, style: str = "helpful",
+                 search_queries: list[str] = None,
+                 max_replies_per_hour: int = 5,
+                 max_replies_per_day: int = 20,
+                 max_comments_on_issue: int = 5,
+                 max_issue_age_hours: int = 48,
+                 max_per_repo_per_day: int = 2,
+                 cooldown_seconds: int = 30,
+                 dry_run: bool = False):
+        self.db = db
+        self.github = GitHubClient(github_token)
+        self.ai = AIProvider(ai_provider, ai_api_key)
+        self.ai_provider_name = ai_provider
+        self.style = style
+        self.search_queries = search_queries or DEFAULT_SCOUT_QUERIES
+        self.max_replies_per_hour = max_replies_per_hour
+        self.max_replies_per_day = max_replies_per_day
+        self.max_comments_on_issue = max_comments_on_issue
+        self.max_issue_age_hours = max_issue_age_hours
+        self.max_per_repo_per_day = max_per_repo_per_day
+        self.cooldown_seconds = cooldown_seconds
+        self.dry_run = dry_run
+
+    def _date_cutoff(self) -> str:
+        """ISO date string for max_issue_age_hours ago."""
+        dt = datetime.now(timezone.utc) - timedelta(hours=self.max_issue_age_hours)
+        return dt.strftime("%Y-%m-%d")
+
+    def scan_once(self) -> list[dict]:
+        """Run one scan cycle across all queries. Returns result dicts."""
+        # Check daily cap
+        daily = self.db.get_scout_replies_in_window(hours=24)
+        if daily >= self.max_replies_per_day:
+            return [{"status": "daily_limit", "count": daily}]
+
+        date_str = self._date_cutoff()
+        results = []
+
+        for raw_query in self.search_queries:
+            query = raw_query.replace("{date}", date_str)
+
+            try:
+                issues = self.github.search_issues(query, per_page=20)
+            except RateLimitError:
+                raise
+            except GitHubAPIError as exc:
+                results.append({"status": "search_error", "query": query, "error": str(exc)})
+                continue
+
+            for issue in issues:
+                try:
+                    r = self._process_issue(issue, query)
+                    if r:
+                        results.append(r)
+                except RateLimitError:
+                    raise
+                except Exception as exc:
+                    results.append({
+                        "repo": issue.get("repository", {}).get("full_name", "?"),
+                        "title": issue.get("title", ""),
+                        "status": "error",
+                        "error": str(exc),
+                    })
+
+        return results
+
+    def _process_issue(self, issue: dict, query: str) -> Optional[dict]:
+        api_url = issue.get("url", "")
+        html_url = issue.get("html_url", "")
+        title = issue.get("title", "")
+        number = issue.get("number", 0)
+        repo_data = issue.get("repository", {})
+        repo = repo_data.get("full_name", "")
+        if not repo and "repository_url" in issue:
+            repo = "/".join(issue["repository_url"].rsplit("/", 2)[-2:])
+
+        # --- filters ---
+
+        # Deduplication
+        if self.db.has_scouted(api_url):
+            return None
+
+        # Comment count filter
+        if issue.get("comments", 0) > self.max_comments_on_issue:
+            return None
+
+        # Hourly cap
+        hourly = self.db.get_scout_replies_in_window(hours=1)
+        if hourly >= self.max_replies_per_hour:
+            return {"repo": repo, "title": title, "status": "hourly_limit"}
+
+        # Per-repo cap
+        if repo and self.db.get_scout_repo_replies_in_window(repo, hours=24) >= self.max_per_repo_per_day:
+            return None
+
+        # --- fetch context & generate reply ---
+
+        ctx = self.github.get_issue_context(issue)
+
+        # Self-comment check
+        for c in ctx.get("comments", []):
+            if c["user"] == self.github.username:
+                self.db.add_scout_issue(
+                    api_url, html_url, repo, number, title,
+                    None, "skipped", self.ai_provider_name, query)
+                return None
+
+        reply_text = self.ai.generate_reply(
+            ctx, self.style, system_prompt_template=SCOUT_SYSTEM_PROMPT)
+
+        if reply_text.strip() == "SKIP":
+            self.db.add_scout_issue(
+                api_url, html_url, repo, number, title,
+                None, "skipped", self.ai_provider_name, query)
+            return {"repo": repo, "title": title, "status": "skipped", "html_url": html_url}
+
+        if self.dry_run:
+            self.db.add_scout_issue(
+                api_url, html_url, repo, number, title,
+                reply_text, "dry_run", self.ai_provider_name, query)
+            return {
+                "repo": repo, "title": title, "html_url": html_url,
+                "status": "dry_run", "reply": reply_text,
+            }
+
+        # Post comment
+        comments_url = ctx.get("comments_url") or (api_url + "/comments")
+        self.github.post_comment(comments_url, reply_text)
+
+        # Record
+        self.db.add_scout_issue(
+            api_url, html_url, repo, number, title,
+            reply_text, "replied", self.ai_provider_name, query)
+
+        # Cooldown
+        time.sleep(self.cooldown_seconds)
+
+        return {
+            "repo": repo, "title": title, "html_url": html_url,
+            "status": "replied", "reply": reply_text,
+        }
+
+    def watch(self, interval_minutes: int = 10, on_cycle=None):
+        """Continuously scan for issues to help with."""
+        while True:
+            try:
+                results = self.scan_once()
                 if on_cycle:
                     on_cycle(results)
             except RateLimitError as exc:

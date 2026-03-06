@@ -34,6 +34,22 @@ class Database:
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scout_issues (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                github_url TEXT NOT NULL UNIQUE,
+                html_url TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                issue_number INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                reply_text TEXT,
+                status TEXT NOT NULL,
+                ai_provider TEXT NOT NULL,
+                search_query TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
         conn.close()
 
@@ -189,3 +205,95 @@ class Database:
             "by_type": by_type,
             "by_repo": by_repo,
         }
+
+    # --- Scout tracking methods ---
+
+    def add_scout_issue(self, github_url: str, html_url: str, repo: str,
+                        issue_number: int, title: str, reply_text: str,
+                        status: str, ai_provider: str, search_query: str) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO scout_issues
+               (github_url, html_url, repo, issue_number, title,
+                reply_text, status, ai_provider, search_query)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (github_url, html_url, repo, issue_number, title,
+             reply_text, status, ai_provider, search_query),
+        )
+        row_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return row_id
+
+    def has_scouted(self, github_url: str) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM scout_issues WHERE github_url = ?", (github_url,))
+        exists = cursor.fetchone() is not None
+        conn.close()
+        return exists
+
+    def get_scout_replies_in_window(self, hours: int = 1) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM scout_issues
+            WHERE status = 'replied'
+              AND created_at >= datetime('now', '-' || ? || ' hours')
+        """, (hours,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
+    def get_scout_repo_replies_in_window(self, repo: str, hours: int = 24) -> int:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) FROM scout_issues
+            WHERE status = 'replied' AND repo = ?
+              AND created_at >= datetime('now', '-' || ? || ' hours')
+        """, (repo, hours))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
+    def get_recent_scout_issues(self, limit: int = 20):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, github_url, html_url, repo, issue_number, title,
+                   reply_text, status, ai_provider, search_query, created_at
+            FROM scout_issues
+            ORDER BY created_at DESC LIMIT ?
+        """, (limit,))
+        rows = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def get_scout_stats(self, days: int = 7):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN status='replied' THEN 1 ELSE 0 END) as replied,
+                   SUM(CASE WHEN status='skipped' THEN 1 ELSE 0 END) as skipped,
+                   COUNT(DISTINCT repo) as repos
+            FROM scout_issues
+            WHERE created_at >= datetime('now', '-' || ? || ' days')
+        """, (days,))
+        totals = dict(cursor.fetchone())
+
+        cursor.execute("""
+            SELECT repo, COUNT(*) as count
+            FROM scout_issues WHERE status='replied'
+              AND created_at >= datetime('now', '-' || ? || ' days')
+            GROUP BY repo ORDER BY count DESC LIMIT 10
+        """, (days,))
+        by_repo = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return {**totals, "by_repo": by_repo}
