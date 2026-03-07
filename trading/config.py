@@ -4,6 +4,8 @@ All strategy parameters are defined here. Total parameter count is kept
 under 10 to avoid overfitting (see backtester validation).
 """
 
+import os
+
 # ---------------------------------------------------------------------------
 # Risk Control (Layer 1) — These are HARD limits, never relaxed at runtime
 # ---------------------------------------------------------------------------
@@ -112,3 +114,11 @@ ALPACA_PAPER = True  # Always start in paper mode
 # ---------------------------------------------------------------------------
 
 TRADING_DB_PATH = "trading.db"
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+NOTIFICATIONS_ENABLED = os.environ.get(
+    "TRADING_NOTIFICATIONS_ENABLED", "false"
+).lower() == "true"

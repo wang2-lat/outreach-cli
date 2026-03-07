@@ -19,11 +19,13 @@ class AlpacaBroker:
     """Wrapper around Alpaca API with built-in risk gating."""
 
     def __init__(self, db: TradingDatabase, risk_engine: RiskEngine,
-                 freq_guard: FrequencyGuard, enforcer: AntiPatternEnforcer):
+                 freq_guard: FrequencyGuard, enforcer: AntiPatternEnforcer,
+                 notification_manager=None):
         self.db = db
         self.risk_engine = risk_engine
         self.freq_guard = freq_guard
         self.enforcer = enforcer
+        self.notifications = notification_manager
         self._client = None
         self._data_client = None
 
@@ -232,6 +234,12 @@ class AlpacaBroker:
                 signal_type=signal_type,
             )
 
+            # Send notification
+            if self.notifications:
+                self.notifications.notify_trade(
+                    symbol, side, quantity, price, verdict.stop_loss_price
+                )
+
             return {
                 "success": True,
                 "order_id": str(order.id),
@@ -253,6 +261,11 @@ class AlpacaBroker:
             details=f"Full liquidation: {reason}",
             equity=account["equity"],
         )
+
+        if self.notifications:
+            self.notifications.notify_risk_alert(
+                "total_drawdown", f"Full liquidation: {reason}", account["equity"]
+            )
 
     def reduce_to_half(self):
         """Reduce all positions by 50% — triggered by weekly drawdown."""
@@ -281,3 +294,8 @@ class AlpacaBroker:
             details="Reduced all positions to 50%",
             equity=account["equity"],
         )
+
+        if self.notifications:
+            self.notifications.notify_risk_alert(
+                "weekly_drawdown", "Reduced all positions to 50%", account["equity"]
+            )

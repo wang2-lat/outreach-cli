@@ -174,6 +174,202 @@ def backtest():
 
 
 @trading_app.command()
+def run(
+    execute: bool = typer.Option(False, "--execute", "-x", help="Execute trades in paper account (default: dry run)"),
+    top_n: int = typer.Option(20, "--top", "-t", help="Number of top stocks to display"),
+):
+    """Run the full pipeline: score S&P 500, select top stocks, optionally execute."""
+    from rich.table import Table
+    from trading.broker import AlpacaBroker
+    from trading.signal import SignalEngine
+    from trading.portfolio import PortfolioManager
+    from trading.universe import UniverseProvider
+    from trading.notifications import NotificationManager
+
+    db, risk, freq, enforcer = _init_components()
+    notifier = NotificationManager()
+    broker = AlpacaBroker(db, risk, freq, enforcer, notification_manager=notifier)
+    signal = SignalEngine(db)
+    portfolio = PortfolioManager(broker, signal, risk, db)
+    universe = UniverseProvider(broker)
+
+    mode = "[yellow]PAPER[/yellow]" if ALPACA_PAPER else "[red]LIVE[/red]"
+    console.print(Panel(f"[bold]Trading Pipeline[/bold] — {mode}", style="blue"))
+
+    # 1. Get universe
+    console.print("Fetching S&P 500 constituents...")
+    symbols = universe.get_sp500_symbols()
+    console.print(f"  Universe: {len(symbols)} stocks")
+
+    # 2. Fetch data
+    console.print("Fetching price data (2 years)...")
+    price_data = universe.get_price_data(symbols, days=504)
+    console.print(f"  Price data: {len(price_data)} stocks with sufficient history")
+
+    # Only fetch fundamentals/news for stocks with price data
+    scored_symbols = list(price_data.keys())
+
+    console.print("Fetching fundamentals...")
+    fundamentals = universe.get_fundamentals(scored_symbols)
+    console.print(f"  Fundamentals: {len(fundamentals)} stocks")
+
+    console.print("Fetching news headlines...")
+    news_data = universe.get_news_data(scored_symbols[:100])  # limit to top 100 for speed
+    console.print(f"  News: {len(news_data)} stocks")
+
+    console.print("Fetching macro data...")
+    macro_data = universe.get_macro_data()
+    console.print(f"  VIX: {macro_data.get('vix', 'N/A'):.1f}  |  "
+                  f"10Y: {macro_data.get('yield_10y', 'N/A'):.2f}  |  "
+                  f"2Y: {macro_data.get('yield_2y', 'N/A'):.2f}")
+
+    industry_map = universe.get_industry_map(scored_symbols)
+
+    # 3. Score universe
+    console.print("\nScoring universe with multi-factor model...")
+    scores = signal.score_universe(price_data, fundamentals, news_data, macro_data)
+    console.print(f"  Scored: {len(scores)} stocks")
+
+    if not scores:
+        console.print("[red]No scores generated. Check data availability.[/red]")
+        return
+
+    # 4. Display top N stocks with factor scores
+    console.print(f"\n")
+    table = Table(title=f"Top {top_n} Stocks — Multi-Factor Ranking")
+    table.add_column("Rank", style="bold", width=5)
+    table.add_column("Symbol", style="cyan", width=8)
+    table.add_column("Composite", justify="right", width=10)
+    table.add_column("Momentum", justify="right", width=10)
+    table.add_column("Value", justify="right", width=10)
+    table.add_column("Quality", justify="right", width=10)
+    table.add_column("Industry", width=25)
+
+    # Get individual factor scores from DB
+    today = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%d")
+    conn = db._conn()
+
+    for rank, (symbol, composite) in enumerate(list(scores.items())[:top_n], 1):
+        # Query individual factor scores
+        row = conn.execute(
+            "SELECT momentum_score, value_score, quality_score FROM factor_scores "
+            "WHERE symbol=? AND date=? ORDER BY rowid DESC LIMIT 1",
+            (symbol, today)
+        ).fetchone()
+
+        mom = f"{row['momentum_score']:.3f}" if row and row['momentum_score'] is not None else "—"
+        val = f"{row['value_score']:.3f}" if row and row['value_score'] is not None else "—"
+        qual = f"{row['quality_score']:.3f}" if row and row['quality_score'] is not None else "—"
+        industry = industry_map.get(symbol, "Unknown")
+
+        table.add_row(
+            str(rank),
+            symbol,
+            f"{composite:.4f}",
+            mom, val, qual,
+            industry,
+        )
+
+    console.print(table)
+    db._close(conn)
+
+    # 5. Execute if requested
+    if execute:
+        console.print("\n[bold]Executing rebalance in paper trading account...[/bold]")
+        try:
+            result = portfolio.execute_rebalance(
+                price_data, fundamentals, news_data, macro_data, industry_map
+            )
+
+            if result["action"] == "skip":
+                console.print(f"[yellow]Skipped: {result['reason']}[/yellow]")
+            else:
+                console.print(f"[green]Rebalanced![/green]")
+                console.print(f"  Orders submitted: {result['orders']}")
+                console.print(f"  Executed: {result['executed']}")
+                console.print(f"  Rejected by risk engine: {result['rejected']}")
+
+                if result.get("details"):
+                    console.print("\nOrder Details:")
+                    for d in result["details"]:
+                        status = "[green]OK[/green]" if d.get("success") else f"[red]REJECTED: {d.get('reason', '?')}[/red]"
+                        console.print(f"  {d['side'].upper()} {d.get('quantity', '?')} {d['symbol']} — {status}")
+
+        except Exception as e:
+            console.print(f"[red]Execution failed: {e}[/red]")
+    else:
+        console.print(
+            "\n[dim]Dry run complete. Use --execute to place orders in paper trading.[/dim]"
+        )
+
+
+@trading_app.command(name="equity-update")
+def equity_update():
+    """Update daily equity tracking (for cron usage)."""
+    from trading.broker import AlpacaBroker
+    from trading.signal import SignalEngine
+    from trading.portfolio import PortfolioManager
+
+    db, risk, freq, enforcer = _init_components()
+    broker = AlpacaBroker(db, risk, freq, enforcer)
+    signal = SignalEngine(db)
+    portfolio = PortfolioManager(broker, signal, risk, db)
+
+    try:
+        portfolio.update_equity_tracking()
+        console.print("[green]Daily equity tracking updated.[/green]")
+    except Exception as e:
+        console.print(f"[red]Failed: {e}[/red]")
+
+
+@trading_app.command(name="weekly-summary")
+def weekly_summary():
+    """Send weekly summary email notification."""
+    from trading.notifications import NotificationManager
+
+    db = TradingDatabase()
+    notifier = NotificationManager()
+
+    if not notifier._is_configured():
+        console.print("[yellow]Notifications not configured. Set TRADING_NOTIFICATIONS_ENABLED=true "
+                      "and SMTP environment variables.[/yellow]")
+        return
+
+    notifier.notify_weekly_summary(db)
+    console.print("[green]Weekly summary email sent.[/green]")
+
+
+@trading_app.command()
+def schedule():
+    """Start the trading scheduler (runs as a daemon).
+
+    Scheduled jobs:
+      - Rebalance: every 14 days
+      - Equity tracking: weekdays at 16:30 ET
+      - Weekly summary email: Sundays at 09:00
+
+    Alternative: use crontab entries instead:
+      0 10 1,15 * * cd /path/to/outreach-cli && python main.py trading run --execute
+      30 16 * * 1-5 cd /path/to/outreach-cli && python main.py trading equity-update
+      0 9 * * 0 cd /path/to/outreach-cli && python main.py trading weekly-summary
+    """
+    from trading.scheduler import TradingScheduler
+
+    console.print(Panel("[bold]Trading Scheduler[/bold]", style="green"))
+    console.print("Starting scheduler daemon...")
+    console.print("  Rebalance: every 14 days")
+    console.print("  Equity tracking: weekdays at 16:30")
+    console.print("  Weekly summary: Sundays at 09:00")
+    console.print("\nPress Ctrl+C to stop.\n")
+
+    scheduler = TradingScheduler()
+    try:
+        scheduler.start()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Scheduler stopped.[/yellow]")
+
+
+@trading_app.command()
 def config():
     """Display current trading system configuration."""
     from trading import config as cfg
