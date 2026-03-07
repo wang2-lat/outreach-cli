@@ -1,0 +1,240 @@
+{
+  "state": "California",
+  "lastUpdated": "2026-03-01",
+  "categories": [
+    {
+      "id": "state-registration",
+      "title": "State Employer Registration",
+      "description": "Register your business as an employer with California agencies",
+      "items": [
+        {
+          "id": "ca-edd-registration",
+          "title": "Register with CA EDD as an employer",
+          "description": "All employers with employees in California must register with the Employment Development Department (EDD) within 15 days of paying $100+ in wages. This registers you for state payroll taxes including UI, ETT, SDI, and PIT withholding.",
+          "plainEnglish": "Tell California's employment department that you're now a boss. This one registration covers multiple state taxes. Do it online — it's called e-Services for Business.",
+          "deadline": "Within 15 days of paying $100 or more in wages in a calendar quarter",
+          "penalty": "Late registration can result in penalties of 15% of the amount due, plus interest.",
+          "estimatedTime": "30-45 minutes",
+          "officialUrl": "https://edd.ca.gov/en/payroll_taxes/am_i_an_employer/",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        },
+        {
+          "id": "ca-ftb-registration",
+          "title": "Register with CA Franchise Tax Board for income tax withholding",
+          "description": "Register with the California Franchise Tax Board (FTB) to withhold state income tax from employee wages. This is separate from the EDD registration.",
+          "plainEnglish": "California has its own income tax, so you need to set up withholding for that too. If you've already registered with the EDD, the FTB registration is usually straightforward.",
+          "deadline": "Before first payroll",
+          "penalty": "Failure to withhold: you may be personally liable for the tax amounts plus penalties.",
+          "estimatedTime": "20 minutes",
+          "officialUrl": "https://www.ftb.ca.gov/file/business/index.html",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        }
+      ]
+    },
+    {
+      "id": "state-taxes",
+      "title": "California Payroll Taxes",
+      "description": "Set up California-specific tax withholding and payments",
+      "items": [
+        {
+          "id": "ca-sdi",
+          "title": "Set up SDI (State Disability Insurance) withholding",
+          "description": "California requires employers to withhold SDI from employee wages. The SDI rate is 1.1% of wages up to the annual wage limit. SDI funds short-term disability benefits and Paid Family Leave (PFL).",
+          "plainEnglish": "You take a small percentage out of each employee's paycheck for disability insurance. If they get hurt or sick and can't work, this pays them while they recover. The employee pays this, not you.",
+          "deadline": "From the first payroll",
+          "penalty": "Failure to withhold: employer liable for the taxes plus 10% penalty.",
+          "estimatedTime": "Handled by payroll setup",
+          "officialUrl": "https://edd.ca.gov/en/disability/employer_information/",
+          "requiredFor": ["all"],
+          "dependsOn": ["ca-edd-registration"]
+        },
+        {
+          "id": "ca-pit",
+          "title": "Set up CA PIT (Personal Income Tax) withholding",
+          "description": "Employers must withhold California Personal Income Tax from employee wages based on the employee's DE 4 form (California's equivalent of the W-4).",
+          "plainEnglish": "Just like federal income tax withholding, you withhold California state income tax from each paycheck. Have your employees fill out a DE 4 form so you know how much to withhold.",
+          "deadline": "From the first payroll",
+          "penalty": "Employer liable for unwithheld taxes plus penalties and interest.",
+          "estimatedTime": "Handled by payroll setup",
+          "officialUrl": "https://edd.ca.gov/en/payroll_taxes/what_are_state_payroll_taxes/",
+          "requiredFor": ["all"],
+          "dependsOn": ["ca-edd-registration"]
+        },
+        {
+          "id": "ca-ui-ett",
+          "title": "Register for CA UI and ETT",
+          "description": "California employers pay Unemployment Insurance (UI) tax and Employment Training Tax (ETT) on employee wages. UI rate varies by employer experience (new employers: 3.4%). ETT is 0.1% on first $7,000 per employee.",
+          "plainEnglish": "These are taxes YOU pay (not the employee) that fund unemployment benefits and job training. As a new employer, your UI rate starts at 3.4%. These are covered when you register with EDD.",
+          "deadline": "From the first payroll",
+          "penalty": "Late payment: 15% penalty plus interest.",
+          "estimatedTime": "Covered by EDD registration",
+          "officialUrl": "https://edd.ca.gov/en/payroll_taxes/rates_and_withholding/",
+          "requiredFor": ["all"],
+          "dependsOn": ["ca-edd-registration"]
+        }
+      ]
+    },
+    {
+      "id": "insurance",
+      "title": "Insurance Requirements",
+      "description": "Mandatory insurance for California employers",
+      "items": [
+        {
+          "id": "ca-workers-comp",
+          "title": "Obtain Workers' Compensation insurance",
+          "description": "California law REQUIRES all employers with one or more employees to carry workers' compensation insurance. No exceptions. You can purchase through a private insurer, through the State Compensation Insurance Fund, or self-insure (large employers only).",
+          "plainEnglish": "This is mandatory in California — no exceptions, even for one employee. If your employee gets hurt on the job, this pays for their medical bills and lost wages. Shop around for rates — they vary by industry.",
+          "deadline": "Before your first employee starts work",
+          "penalty": "Operating without workers' comp is a criminal offense in CA. Fine of up to $10,000 and/or 1 year in jail. Plus you're liable for all injury costs.",
+          "estimatedTime": "1-2 hours to shop and purchase",
+          "officialUrl": "https://www.dir.ca.gov/dwc/employer.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "wage-and-hour",
+      "title": "Wage & Hour Compliance",
+      "description": "California's strict wage and hour requirements",
+      "items": [
+        {
+          "id": "ca-minimum-wage",
+          "title": "Comply with CA minimum wage ($16.50/hour)",
+          "description": "California's statewide minimum wage is $16.50/hour as of January 1, 2026. Some cities and counties have higher local minimum wages (e.g., San Francisco, Los Angeles, Berkeley). Fast food workers have a separate minimum of $20/hour.",
+          "plainEnglish": "You must pay at least $16.50/hour in California. But check your city — places like San Francisco and LA have even higher minimums. Fast food workers get $20/hour minimum.",
+          "deadline": "Ongoing — applies to every paycheck",
+          "penalty": "Owed back wages plus penalties. Willful violation: up to $1,000/violation plus 25% liquidated damages.",
+          "estimatedTime": "N/A — policy decision",
+          "officialUrl": "https://www.dir.ca.gov/dlse/faq_minimumwage.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-meal-breaks",
+          "title": "Provide required meal breaks",
+          "description": "California requires a 30-minute unpaid meal break for employees working more than 5 hours, and a second 30-minute meal break for shifts over 10 hours. Employees must be relieved of ALL duties during meal breaks.",
+          "plainEnglish": "If someone works more than 5 hours, they get a 30-minute lunch break. Over 10 hours? Two breaks. You can't just say 'eat at your desk' — they must be completely free from work duties.",
+          "deadline": "Ongoing — every shift",
+          "penalty": "One extra hour of pay at the employee's regular rate for each day a meal break is missed.",
+          "estimatedTime": "N/A — policy/scheduling",
+          "officialUrl": "https://www.dir.ca.gov/dlse/faq_mealperiods.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-rest-breaks",
+          "title": "Provide required rest breaks",
+          "description": "California requires a paid 10-minute rest break for every 4 hours worked (or major fraction thereof). Rest breaks should be in the middle of the work period when practicable.",
+          "plainEnglish": "For every 4 hours of work, your employee gets a paid 10-minute break. A 6-hour shift gets one break, an 8-hour shift gets two. These are paid — you can't dock their pay.",
+          "deadline": "Ongoing — every shift",
+          "penalty": "One extra hour of pay at the employee's regular rate for each day a rest break is missed.",
+          "estimatedTime": "N/A — policy/scheduling",
+          "officialUrl": "https://www.dir.ca.gov/dlse/faq_restperiods.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-overtime",
+          "title": "Understand CA overtime rules",
+          "description": "California has daily AND weekly overtime. Pay 1.5x for: hours over 8 in a day, first 8 hours on the 7th consecutive day, or hours over 40 in a week. Pay 2x for: hours over 12 in a day, or hours over 8 on the 7th consecutive day.",
+          "plainEnglish": "California overtime is stricter than federal. You pay 1.5x after 8 hours in a DAY (not just 40/week). And if someone works 7 days straight, the 7th day has special overtime. Working over 12 hours in a day? That's double time.",
+          "deadline": "Ongoing — applies to every paycheck",
+          "penalty": "Back wages owed plus waiting time penalties, plus potential PAGA penalties.",
+          "estimatedTime": "N/A — policy decision",
+          "officialUrl": "https://www.dir.ca.gov/dlse/faq_overtime.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-pay-stubs",
+          "title": "Provide itemized wage statements (pay stubs)",
+          "description": "California Labor Code Section 226 requires employers to provide detailed itemized wage statements with each paycheck, showing: gross wages, total hours worked, deductions, net wages, pay period dates, employee name, employer name/address, and all applicable hourly rates.",
+          "plainEnglish": "Every paycheck needs a detailed pay stub. It must show how many hours they worked, their pay rate, all deductions (taxes, etc.), and net pay. Your payroll service creates these automatically.",
+          "deadline": "With every paycheck",
+          "penalty": "$50 per employee per pay period for first violation, $100 thereafter, up to $4,000.",
+          "estimatedTime": "Handled by payroll service",
+          "officialUrl": "https://www.dir.ca.gov/dlse/faq_paystubs.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "notices-and-posters",
+      "title": "Required Notices & Posters",
+      "description": "California-specific workplace postings and employee notices",
+      "items": [
+        {
+          "id": "ca-labor-posters",
+          "title": "Display CA workplace posters",
+          "description": "California requires numerous workplace postings beyond federal requirements, including: CA minimum wage, Paid Sick Leave, Workers' Comp info, Discrimination/Harassment, Whistleblower protections, and more.",
+          "plainEnglish": "California has its own set of required workplace posters — about a dozen of them. You can download them free from the DIR website or buy an all-in-one California/Federal combo poster.",
+          "deadline": "Before first employee starts",
+          "penalty": "Up to $7,000 per violation for some posters.",
+          "estimatedTime": "30 minutes to download and print/order",
+          "officialUrl": "https://www.dir.ca.gov/wpnodb.html",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-wtpa-notice",
+          "title": "Provide Wage Theft Prevention Act notice",
+          "description": "California's Wage Theft Prevention Act requires employers to provide each employee with a written notice at the time of hire containing: rate of pay, pay day, employer info, workers' comp carrier info, and other details.",
+          "plainEnglish": "When you hire someone in California, you must give them a written notice with their pay rate, pay schedule, your business info, and workers' comp details. Use the official DLSE form — it's a simple one-page document.",
+          "deadline": "At the time of hire",
+          "penalty": "$100 per employee per pay period, up to $25,000 total, plus right to recover attorney's fees.",
+          "estimatedTime": "15 minutes per employee",
+          "officialUrl": "https://www.dir.ca.gov/dlse/lc_2810.5_notice.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-harassment-training",
+          "title": "Provide sexual harassment prevention training",
+          "description": "California employers with 5+ employees must provide sexual harassment prevention training: 2 hours for supervisors, 1 hour for non-supervisory employees. Must be completed within 6 months of hire and every 2 years after.",
+          "plainEnglish": "If you have 5 or more employees, everyone needs sexual harassment prevention training. Supervisors get 2 hours, everyone else gets 1 hour. California provides free online training you can use.",
+          "deadline": "Within 6 months of hire date (for employers with 5+ employees)",
+          "penalty": "No specific fine, but failure to train weakens your defense in harassment lawsuits.",
+          "estimatedTime": "1-2 hours per employee",
+          "officialUrl": "https://calcivilrights.ca.gov/shpt/",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "leave-policies",
+      "title": "Leave Policies",
+      "description": "California's mandatory leave requirements",
+      "items": [
+        {
+          "id": "ca-paid-sick-leave",
+          "title": "Provide CA Paid Sick Leave",
+          "description": "California requires employers to provide at least 5 days (40 hours) of paid sick leave per year to all employees who work 30+ days in a year. Employees accrue 1 hour for every 30 hours worked, or employers can frontload the full amount.",
+          "plainEnglish": "Every employee who works in California gets at least 5 days of paid sick leave per year. You can either let them earn it hour by hour, or just give them all 5 days upfront. They can use it for their own illness or to care for a family member.",
+          "deadline": "Usable after 90 days of employment (accrual begins day 1)",
+          "penalty": "Up to $4,000 in penalties per violation, plus owed sick leave, plus possible criminal penalties for willful violations.",
+          "estimatedTime": "30 minutes to set up policy",
+          "officialUrl": "https://www.dir.ca.gov/dlse/paid_sick_leave.htm",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "ca-cfra",
+          "title": "Understand CFRA (CA Family Rights Act)",
+          "description": "Employers with 5+ employees must provide up to 12 weeks of unpaid, job-protected leave for: birth/adoption/foster care, serious health condition, or qualifying military exigency. Employee must have 12+ months of service and 1,250+ hours worked.",
+          "plainEnglish": "If you have 5 or more employees, qualifying workers can take up to 12 weeks of unpaid leave for a new baby, serious illness, or family care — and you must hold their job. This is California's version of FMLA but kicks in at 5 employees (federal is 50).",
+          "deadline": "Applies once you have 5+ employees",
+          "penalty": "Lawsuits for damages, back pay, benefits, attorney's fees, and potential punitive damages.",
+          "estimatedTime": "1 hour to understand and create policy",
+          "officialUrl": "https://calcivilrights.ca.gov/family-medical-pregnancy-leave/",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    }
+  ]
+}

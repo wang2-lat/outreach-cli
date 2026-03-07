@@ -1,0 +1,185 @@
+{
+  "state": "Federal",
+  "lastUpdated": "2026-03-01",
+  "categories": [
+    {
+      "id": "employer-identification",
+      "title": "Employer Identification",
+      "description": "Get your federal employer identification number",
+      "items": [
+        {
+          "id": "federal-ein",
+          "title": "Apply for an EIN (Employer Identification Number)",
+          "description": "All employers must have a federal Employer Identification Number (EIN) to identify their business for tax purposes. You apply through the IRS — it's free and you can get it online immediately.",
+          "plainEnglish": "Think of this as a Social Security number for your business. The IRS needs it to track your payroll taxes. Apply online and you'll get it instantly — takes about 10 minutes.",
+          "deadline": "Before hiring your first employee",
+          "penalty": "You cannot legally run payroll or file employment taxes without an EIN.",
+          "estimatedTime": "10-15 minutes",
+          "officialUrl": "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "employee-documentation",
+      "title": "Employee Documentation",
+      "description": "Required forms for every new hire",
+      "items": [
+        {
+          "id": "federal-i9",
+          "title": "Complete Form I-9 for each employee",
+          "description": "Form I-9 verifies the identity and employment authorization of every person hired in the United States. Both the employee and employer must complete their sections. You must physically examine the employee's original documents.",
+          "plainEnglish": "This form proves your employee is legally allowed to work in the US. They fill out part of it, then you check their ID documents (like a passport or driver's license + Social Security card) and fill out your part.",
+          "deadline": "Section 1: Employee's first day. Section 2: Within 3 business days of start date.",
+          "penalty": "Fines range from $272 to $2,701 per form for first offense. Repeat violations can reach $27,018 per form.",
+          "estimatedTime": "15-20 minutes per employee",
+          "officialUrl": "https://www.uscis.gov/i-9",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "federal-w4",
+          "title": "Have employee complete Form W-4",
+          "description": "Form W-4 tells you how much federal income tax to withhold from each employee's paycheck. The employee fills it out; you keep it on file and use it to calculate withholding.",
+          "plainEnglish": "This form tells you how much tax to take out of your employee's paycheck. They fill it out, you keep it. Your payroll software uses the info to calculate the right amount.",
+          "deadline": "Before first paycheck",
+          "penalty": "If you don't withhold properly, you may be liable for the taxes plus penalties and interest.",
+          "estimatedTime": "10 minutes per employee",
+          "officialUrl": "https://www.irs.gov/forms-pubs/about-form-w-4",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "federal-everify",
+          "title": "Consider E-Verify enrollment",
+          "description": "E-Verify is an internet-based system that compares information from Form I-9 to government records to confirm employment eligibility. It's mandatory for federal contractors and in some states, but voluntary for most private employers.",
+          "plainEnglish": "E-Verify is an online check that confirms your employee is eligible to work in the US. It's free and voluntary for most businesses, but some states or government contracts require it.",
+          "deadline": "Before or within 3 days of hire (if required)",
+          "penalty": "If required and not used: fines up to $2,507 per employee for first offense.",
+          "estimatedTime": "30 minutes to set up, 5 minutes per employee",
+          "officialUrl": "https://www.e-verify.gov/",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-i9"]
+        }
+      ]
+    },
+    {
+      "id": "tax-registration",
+      "title": "Federal Tax Registration",
+      "description": "Register for federal employment taxes",
+      "items": [
+        {
+          "id": "federal-fica",
+          "title": "Set up FICA tax withholding (Social Security & Medicare)",
+          "description": "You must withhold Social Security tax (6.2%) and Medicare tax (1.45%) from employee wages, and pay a matching employer portion. Total FICA is 15.3% split evenly between employer and employee.",
+          "plainEnglish": "You take out 7.65% from each paycheck for Social Security and Medicare, and you pay another 7.65% yourself as the employer. Most payroll services handle this automatically.",
+          "deadline": "Before first payroll",
+          "penalty": "Failure to pay: 100% Trust Fund Recovery Penalty — the IRS can hold you personally liable for the full amount.",
+          "estimatedTime": "Handled by payroll setup",
+          "officialUrl": "https://www.irs.gov/businesses/small-businesses-self-employed/employment-taxes",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        },
+        {
+          "id": "federal-futa",
+          "title": "Register for FUTA (Federal Unemployment Tax)",
+          "description": "FUTA tax funds unemployment compensation. Employers pay 6.0% on the first $7,000 of each employee's wages, but you get a credit of up to 5.4% for state unemployment taxes paid, making the effective rate 0.6%.",
+          "plainEnglish": "This is a tax YOU pay (not the employee) that funds unemployment benefits. It's about $42 per employee per year after credits. You report it on IRS Form 940 annually.",
+          "deadline": "Due when you pay wages of $1,500+ in a quarter or have an employee for 20+ weeks",
+          "penalty": "Late filing: 5% per month on unpaid tax. Late payment: 0.5-25% penalty plus interest.",
+          "estimatedTime": "Handled by payroll setup",
+          "officialUrl": "https://www.irs.gov/taxtopics/tc759",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        },
+        {
+          "id": "federal-tax-deposits",
+          "title": "Set up federal tax deposit schedule",
+          "description": "You must deposit federal employment taxes (income tax withheld + FICA) either monthly or semi-weekly, depending on your total tax liability. New employers are usually monthly depositors.",
+          "plainEnglish": "You need to send the taxes you've collected to the IRS on a regular schedule. Most new businesses do this monthly using EFTPS (Electronic Federal Tax Payment System). Your payroll service usually handles this.",
+          "deadline": "Monthly depositors: by the 15th of the following month",
+          "penalty": "2-15% penalty on late deposits depending on how late.",
+          "estimatedTime": "30 minutes to set up EFTPS",
+          "officialUrl": "https://www.irs.gov/businesses/small-businesses-self-employed/depositing-and-reporting-employment-taxes",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        }
+      ]
+    },
+    {
+      "id": "workplace-compliance",
+      "title": "Workplace Compliance",
+      "description": "Federal workplace requirements",
+      "items": [
+        {
+          "id": "federal-labor-posters",
+          "title": "Display federal labor law posters",
+          "description": "Federal law requires employers to display certain posters in the workplace informing employees of their rights. Required posters include: FLSA (minimum wage), OSHA (safety), EEOC (discrimination), USERRA (military leave), and EPPA (polygraph protection).",
+          "plainEnglish": "You need to put up a set of posters in your workplace that tell employees about their rights. You can download them for free from the DOL website or buy an all-in-one poster.",
+          "deadline": "Before first employee starts",
+          "penalty": "Fines up to $44,539 per violation for willful OSHA poster violations. Other poster fines range from $200-$700+.",
+          "estimatedTime": "30 minutes to download and print/order",
+          "officialUrl": "https://www.dol.gov/agencies/whd/posters",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "federal-osha",
+          "title": "OSHA workplace safety compliance",
+          "description": "The Occupational Safety and Health Act requires employers to provide a safe workplace. This includes identifying hazards, providing safety training, maintaining injury/illness records (OSHA 300 log for 11+ employees), and reporting serious incidents.",
+          "plainEnglish": "Make sure your workplace is safe. If someone could get hurt, fix it. For offices this is pretty straightforward — keep exits clear, have a first aid kit. For restaurants or construction, there are more specific rules.",
+          "deadline": "Ongoing from day one",
+          "penalty": "Up to $16,131 per serious violation. Willful violations up to $161,323.",
+          "estimatedTime": "1-3 hours for initial assessment",
+          "officialUrl": "https://www.osha.gov/employers",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "federal-new-hire-reporting",
+          "title": "Report new hires to your state directory",
+          "description": "Federal law requires all employers to report newly hired and re-hired employees to a state directory within 20 days of hire. This is used to locate parents who owe child support.",
+          "plainEnglish": "When you hire someone, you need to report their basic info (name, address, SSN, hire date) to your state's new hire reporting agency. Most payroll services do this automatically.",
+          "deadline": "Within 20 days of hire date",
+          "penalty": "Fines of $25 per late report, up to $500 if there's a conspiracy between employer and employee.",
+          "estimatedTime": "10 minutes per employee (or automatic with payroll service)",
+          "officialUrl": "https://www.acf.hhs.gov/css/employers/new-hire-reporting",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "payroll-setup",
+      "title": "Payroll Setup",
+      "description": "Get your payroll system ready",
+      "items": [
+        {
+          "id": "federal-payroll-schedule",
+          "title": "Choose a payroll schedule",
+          "description": "Decide how often you'll pay employees: weekly, bi-weekly, semi-monthly, or monthly. Some states have laws requiring minimum pay frequencies. You must be consistent and communicate the schedule to employees.",
+          "plainEnglish": "Decide how often you'll pay your employees. Bi-weekly (every 2 weeks) is the most common. Check your state's rules — some states don't allow monthly pay for hourly workers.",
+          "deadline": "Before first payroll",
+          "penalty": "State-specific penalties for late or irregular pay.",
+          "estimatedTime": "15 minutes to decide, varies to set up",
+          "officialUrl": "https://www.dol.gov/agencies/whd/minimum-wage/state#702",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        },
+        {
+          "id": "federal-recordkeeping",
+          "title": "Set up employee record-keeping system",
+          "description": "Federal law requires employers to keep records of hours worked and wages paid for at least 3 years. For FLSA purposes, you must record: employee name, SSN, address, birth date, sex, occupation, time/day workweek begins, hours worked each day/week, regular pay rate, total overtime pay, deductions, total wages, and pay date/period.",
+          "plainEnglish": "Keep track of when your employees work and what you pay them. A good payroll service or even a simple spreadsheet works. You must keep these records for at least 3 years.",
+          "deadline": "From the first day of employment",
+          "penalty": "FLSA recordkeeping violations: fines up to $2,203 per violation.",
+          "estimatedTime": "1 hour to set up system",
+          "officialUrl": "https://www.dol.gov/agencies/whd/compliance-assistance/handy-reference-guide-flsa#10",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    }
+  ]
+}

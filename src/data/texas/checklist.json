@@ -1,0 +1,180 @@
+{
+  "state": "Texas",
+  "lastUpdated": "2026-03-01",
+  "categories": [
+    {
+      "id": "state-registration",
+      "title": "State Employer Registration",
+      "description": "Register your business as an employer with Texas agencies",
+      "items": [
+        {
+          "id": "tx-twc-registration",
+          "title": "Register with Texas Workforce Commission (TWC)",
+          "description": "All Texas employers must register with the Texas Workforce Commission to report wages and pay unemployment taxes. You must register within 10 days of becoming a liable employer (paying $1,500+ in wages in a quarter or having any employee for 20+ weeks).",
+          "plainEnglish": "Register your business with TWC so you can pay unemployment taxes and report new hires. You can do it online through the TWC website. This is your main state-level employer registration.",
+          "deadline": "Within 10 days of becoming liable (paying $1,500+ in a quarter or 20+ weeks with employees)",
+          "penalty": "Late filing penalties apply. Failure to register can result in penalties and back taxes.",
+          "estimatedTime": "30 minutes",
+          "officialUrl": "https://www.twc.texas.gov/businesses/unemployment-tax-registration",
+          "requiredFor": ["all"],
+          "dependsOn": ["federal-ein"]
+        }
+      ]
+    },
+    {
+      "id": "state-taxes",
+      "title": "Texas Payroll Taxes",
+      "description": "Texas tax requirements for employers",
+      "items": [
+        {
+          "id": "tx-no-income-tax",
+          "title": "No state income tax withholding required",
+          "description": "Texas has no state income tax, which means you do NOT need to withhold state income tax from employee paychecks. This is one of the biggest advantages of operating in Texas. You still must withhold federal income tax.",
+          "plainEnglish": "Good news — Texas has no state income tax! You don't need to take out state income tax from your employees' paychecks. You still need to handle federal income tax withholding though.",
+          "deadline": "N/A",
+          "penalty": "N/A",
+          "estimatedTime": "N/A — no action needed",
+          "officialUrl": "https://comptroller.texas.gov/taxes/",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "tx-unemployment-tax",
+          "title": "Set up TX Unemployment Insurance tax",
+          "description": "Texas employers must pay state unemployment insurance (UI) tax on the first $9,000 of each employee's wages. New employers pay a rate of 2.7% (general tax rate). Rates adjust annually based on your experience rating.",
+          "plainEnglish": "You pay unemployment tax to Texas on the first $9,000 of each employee's annual wages. As a new business, your rate is 2.7%. This is YOUR cost — you don't take it from the employee's paycheck.",
+          "deadline": "Quarterly — due by the last day of the month following the quarter end",
+          "penalty": "5% penalty per month on late payments, up to 25%. Plus interest.",
+          "estimatedTime": "Handled through TWC registration",
+          "officialUrl": "https://www.twc.texas.gov/businesses/unemployment-tax-basics",
+          "requiredFor": ["all"],
+          "dependsOn": ["tx-twc-registration"]
+        }
+      ]
+    },
+    {
+      "id": "insurance",
+      "title": "Insurance",
+      "description": "Insurance requirements for Texas employers",
+      "items": [
+        {
+          "id": "tx-workers-comp",
+          "title": "Consider Workers' Compensation insurance (optional in TX)",
+          "description": "Texas is one of the few states where workers' compensation insurance is OPTIONAL for private employers. However, employers who opt out ('non-subscribers') lose important legal protections and can be sued by injured employees. Most experts strongly recommend carrying it.",
+          "plainEnglish": "Unlike most states, Texas doesn't force you to buy workers' comp insurance. BUT if you skip it and an employee gets hurt, they can sue you directly — and you can't use many common legal defenses. Most business advisors say: just get the insurance.",
+          "deadline": "Recommended before first employee starts",
+          "penalty": "No penalty for not having it, BUT you lose legal protections. Injured workers can sue you for negligence, and you cannot argue contributory negligence, fellow employee negligence, or assumption of risk.",
+          "estimatedTime": "1-2 hours to shop and purchase",
+          "officialUrl": "https://www.tdi.texas.gov/wc/employer/index.html",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "tx-workers-comp-notice",
+          "title": "Post workers' comp coverage or non-coverage notice",
+          "description": "Whether or not you carry workers' comp, Texas requires you to post a notice informing employees of your coverage status. Use DWC Form-5 (if covered) or DWC Form-6 (if not covered).",
+          "plainEnglish": "You must put up a poster telling employees whether you have workers' comp insurance or not. Texas has specific forms for both situations — download the right one from the TDI website.",
+          "deadline": "Before first employee starts",
+          "penalty": "Administrative penalties for failure to post the required notice.",
+          "estimatedTime": "15 minutes",
+          "officialUrl": "https://www.tdi.texas.gov/wc/employer/eresource.html",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "wage-and-hour",
+      "title": "Wage & Hour Compliance",
+      "description": "Texas wage and hour requirements",
+      "items": [
+        {
+          "id": "tx-minimum-wage",
+          "title": "Comply with minimum wage ($7.25/hour federal rate)",
+          "description": "Texas follows the federal minimum wage of $7.25/hour. Texas has not enacted a higher state minimum wage. Some Texas cities have attempted local minimum wage laws but state law preempts them.",
+          "plainEnglish": "Texas uses the federal minimum wage of $7.25/hour. No city in Texas can set a higher minimum. That said, you'll probably need to pay more than minimum to attract workers in most areas.",
+          "deadline": "Ongoing — applies to every paycheck",
+          "penalty": "Violation of FLSA: back wages plus equal amount in liquidated damages. Willful violations: up to $11,000 per violation.",
+          "estimatedTime": "N/A — policy decision",
+          "officialUrl": "https://www.twc.texas.gov/businesses/texas-minimum-wage-law",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "tx-overtime",
+          "title": "Follow federal FLSA overtime rules",
+          "description": "Texas follows federal FLSA overtime rules: pay 1.5x the regular rate for hours worked over 40 in a workweek. Texas does not have daily overtime requirements (unlike California). Certain employees may be exempt from overtime.",
+          "plainEnglish": "Texas uses the federal overtime rule: if someone works more than 40 hours in a week, pay them 1.5x for the extra hours. Unlike California, Texas doesn't care how many hours per day — only per week.",
+          "deadline": "Ongoing — applies to every paycheck",
+          "penalty": "Back wages owed plus equal amount in liquidated damages. Willful violations: 3-year statute of limitations.",
+          "estimatedTime": "N/A — policy decision",
+          "officialUrl": "https://www.twc.texas.gov/businesses/federal-overtime-pay-rules",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "tx-payday-law",
+          "title": "Comply with TX Payday Law requirements",
+          "description": "The Texas Payday Law requires employers to pay employees at least twice a month (semi-monthly) for most employees. You must designate paydays and post them. Final paycheck: within 6 calendar days of termination (involuntary) or next regular payday (voluntary quit).",
+          "plainEnglish": "In Texas, you must pay most employees at least twice a month. Pick your paydays and stick to them. If you fire someone, their final paycheck is due within 6 days. If they quit, it's due on the next regular payday.",
+          "deadline": "From first payroll — must pay at least semi-monthly",
+          "penalty": "Up to $1,000 per violation. TWC can order payment of wages plus penalties.",
+          "estimatedTime": "15 minutes to set up schedule",
+          "officialUrl": "https://www.twc.texas.gov/businesses/texas-payday-law",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "notices-and-posters",
+      "title": "Required Notices & Posters",
+      "description": "Texas-specific workplace posting requirements",
+      "items": [
+        {
+          "id": "tx-labor-posters",
+          "title": "Display TX workplace posters",
+          "description": "Texas employers must display state-required workplace posters including: Texas Payday Law, Workers' Comp notice, Texas Unemployment Compensation Act notice, and the TWC Equal Employment Opportunity poster.",
+          "plainEnglish": "Put up Texas-specific workplace posters alongside your federal posters. Download them free from the TWC website. You'll need posters about payday law, workers' comp status, unemployment, and equal opportunity.",
+          "deadline": "Before first employee starts",
+          "penalty": "Varies by poster — administrative penalties for non-compliance.",
+          "estimatedTime": "30 minutes to download and print/order",
+          "officialUrl": "https://www.twc.texas.gov/businesses/required-workplace-posters",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    },
+    {
+      "id": "at-will-employment",
+      "title": "Employment Agreements",
+      "description": "Texas employment relationship basics",
+      "items": [
+        {
+          "id": "tx-at-will",
+          "title": "Understand Texas at-will employment",
+          "description": "Texas is an at-will employment state, meaning either employer or employee can end the employment relationship at any time, for any legal reason, with or without notice. However, you cannot fire someone for an illegal reason (discrimination, retaliation, etc.).",
+          "plainEnglish": "In Texas, you can fire someone for almost any reason (or no reason), and they can quit anytime too. BUT you cannot fire someone because of their race, gender, religion, age, disability, or for reporting safety violations. Document your reasons for termination.",
+          "deadline": "Understand before hiring",
+          "penalty": "Wrongful termination lawsuits if firing violates anti-discrimination laws or other protected categories.",
+          "estimatedTime": "30 minutes to understand",
+          "officialUrl": "https://www.twc.texas.gov/businesses/employment-law-discrimination",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        },
+        {
+          "id": "tx-employment-agreement",
+          "title": "Consider a written employment agreement",
+          "description": "While not legally required in Texas, a written employment agreement or offer letter is strongly recommended. It should outline: position, compensation, benefits, work schedule, at-will status, and any confidentiality or non-compete terms.",
+          "plainEnglish": "You don't have to give employees a written agreement in Texas, but you really should. Write down the job title, pay, benefits, and that employment is 'at-will.' This avoids misunderstandings and protects you if there's a dispute later.",
+          "deadline": "Recommended before or on first day of employment",
+          "penalty": "No legal penalty, but lack of written terms can lead to costly disputes.",
+          "estimatedTime": "1 hour to draft",
+          "officialUrl": "https://www.twc.texas.gov/businesses/employment-law-discrimination",
+          "requiredFor": ["all"],
+          "dependsOn": []
+        }
+      ]
+    }
+  ]
+}
