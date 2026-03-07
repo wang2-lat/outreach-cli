@@ -18,6 +18,7 @@ from trading.config import (
     FACTOR_WEIGHT_MACRO,
     MIN_POSITIONS,
     MAX_POSITIONS,
+    MAX_INDUSTRY_PCT,
     REBALANCE_INTERVAL_DAYS,
     MIN_REBALANCE_IMPROVEMENT,
     ESTIMATED_TRANSACTION_COST_PCT,
@@ -41,6 +42,9 @@ class SignalEngine:
         self.sentiment = SentimentFactor(db)
         self.macro = MacroFactor()
         self._last_rebalance: Optional[datetime] = None
+        # Cached from last score_universe() call for use by generate_rebalance_targets()
+        self._last_quality_scores: dict[str, float] = {}
+        self._last_factor_counts: dict[str, int] = {}
 
     def score_universe(
         self,
@@ -59,6 +63,16 @@ class SignalEngine:
         quality_scores = self.quality.score(fundamentals)
         sentiment_scores = self.sentiment.score(news_data)
         macro_allocation = self.macro.score(macro_data)
+
+        # Cache quality scores for use in generate_rebalance_targets()
+        self._last_quality_scores = quality_scores
+        self._last_factor_counts = {
+            "momentum": len(momentum_scores),
+            "value": len(value_scores),
+            "quality": len(quality_scores),
+            "sentiment": len(sentiment_scores),
+            "macro": 1 if macro_allocation > 0 else 0,
+        }
 
         # Combine all symbols that have at least momentum + one other factor
         all_symbols = set(momentum_scores.keys())
@@ -101,18 +115,56 @@ class SignalEngine:
     def generate_rebalance_targets(
         self, scores: dict[str, float], total_equity: float,
         macro_allocation: float = 1.0,
+        industry_map: dict[str, str] | None = None,
+        quality_scores: dict[str, float] | None = None,
     ) -> dict[str, float]:
         """Generate target portfolio allocation from scores.
+
+        Enforces industry concentration limits and quality filter during
+        selection — stocks are skipped if their industry already has
+        max_per_industry slots filled or if their quality z-score < 0.
 
         Returns {symbol: target_dollar_allocation}
         """
         if not scores:
             return {}
 
-        # Take top MIN_POSITIONS to MAX_POSITIONS stocks
+        # Use cached quality scores if not explicitly provided
+        if quality_scores is None:
+            quality_scores = self._last_quality_scores
+
         n_positions = max(MIN_POSITIONS, min(MAX_POSITIONS, len(scores)))
-        top_symbols = list(scores.keys())[:n_positions]
-        top_scores = {s: scores[s] for s in top_symbols}
+        # Max stocks per industry = MAX_POSITIONS * MAX_INDUSTRY_PCT (e.g. 25 * 0.20 = 5)
+        max_per_industry = max(1, int(MAX_POSITIONS * MAX_INDUSTRY_PCT))
+
+        # Industry-aware, quality-filtered selection
+        selected = []
+        industry_count: dict[str, int] = {}
+
+        for symbol in scores:
+            # Skip stocks with negative quality z-score
+            if quality_scores and quality_scores.get(symbol, 0) < 0:
+                continue
+
+            # Enforce industry concentration limit during selection
+            # (only when real industry data is available)
+            if industry_map:
+                industry = industry_map.get(symbol, "Unknown")
+                if industry_count.get(industry, 0) >= max_per_industry:
+                    continue
+
+            selected.append(symbol)
+            if industry_map:
+                industry = industry_map.get(symbol, "Unknown")
+                industry_count[industry] = industry_count.get(industry, 0) + 1
+
+            if len(selected) >= n_positions:
+                break
+
+        if not selected:
+            return {}
+
+        top_scores = {s: scores[s] for s in selected}
 
         # Score-weighted allocation within the invested portion
         total_score = sum(max(s, 0.01) for s in top_scores.values())

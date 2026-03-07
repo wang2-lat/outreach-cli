@@ -160,10 +160,11 @@ class PortfolioManager:
         if not should:
             return {"action": "skip", "reason": reason}
 
-        # Generate targets
+        # Generate targets (with industry limits and quality filter)
         macro_alloc = self.signal.macro.score(macro_data)
         targets = self.signal.generate_rebalance_targets(
-            scores, total_equity, macro_alloc
+            scores, total_equity, macro_alloc,
+            industry_map=industry_map,
         )
 
         # Calculate and execute orders

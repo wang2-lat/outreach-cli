@@ -234,44 +234,88 @@ def run(
         console.print("[red]No scores generated. Check data availability.[/red]")
         return
 
+    # Print factor participation report
+    from trading import config as cfg
+    fc = signal._last_factor_counts
+    console.print(f"\n[bold]Factor Weights & Coverage[/bold]")
+    console.print(f"  Momentum  {cfg.FACTOR_WEIGHT_MOMENTUM:.0%}  — {fc.get('momentum', 0)} stocks scored")
+    console.print(f"  Value     {cfg.FACTOR_WEIGHT_VALUE:.0%}  — {fc.get('value', 0)} stocks scored")
+    console.print(f"  Quality   {cfg.FACTOR_WEIGHT_QUALITY:.0%}  — {fc.get('quality', 0)} stocks scored")
+    console.print(f"  Sentiment {cfg.FACTOR_WEIGHT_SENTIMENT:.0%}  — {fc.get('sentiment', 0)} stocks scored")
+    console.print(f"  Macro     {cfg.FACTOR_WEIGHT_MACRO:.0%}  — applied as allocation multiplier")
+
+    # Apply industry-aware selection + quality filter for display
+    quality_scores = signal._last_quality_scores
+    max_per_industry = max(1, int(cfg.MAX_POSITIONS * cfg.MAX_INDUSTRY_PCT))
+    selected = []
+    industry_count: dict[str, int] = {}
+    skipped_quality = 0
+    skipped_industry = 0
+
+    for symbol in scores:
+        if quality_scores and quality_scores.get(symbol, 0) < 0:
+            skipped_quality += 1
+            continue
+        industry = industry_map.get(symbol, "Unknown")
+        if industry_count.get(industry, 0) >= max_per_industry:
+            skipped_industry += 1
+            continue
+        selected.append(symbol)
+        industry_count[industry] = industry_count.get(industry, 0) + 1
+        if len(selected) >= top_n:
+            break
+
+    console.print(f"\n  Filtered: skipped {skipped_quality} (negative quality), "
+                  f"{skipped_industry} (industry cap of {max_per_industry}/industry)")
+
     # 4. Display top N stocks with factor scores
     console.print(f"\n")
-    table = Table(title=f"Top {top_n} Stocks — Multi-Factor Ranking")
-    table.add_column("Rank", style="bold", width=5)
-    table.add_column("Symbol", style="cyan", width=8)
-    table.add_column("Composite", justify="right", width=10)
-    table.add_column("Momentum", justify="right", width=10)
-    table.add_column("Value", justify="right", width=10)
-    table.add_column("Quality", justify="right", width=10)
-    table.add_column("Industry", width=25)
+    table = Table(title=f"Top {top_n} Stocks — Multi-Factor Ranking (Industry-Aware)")
+    table.add_column("#", style="bold", width=3)
+    table.add_column("Symbol", style="cyan", width=7)
+    table.add_column("Score", justify="right", width=7)
+    table.add_column("Mom", justify="right", width=7)
+    table.add_column("Val", justify="right", width=7)
+    table.add_column("Qual", justify="right", width=7)
+    table.add_column("Sent", justify="right", width=7)
+    table.add_column("Macro", justify="right", width=7)
+    table.add_column("Industry", width=22)
 
     # Get individual factor scores from DB
     today = __import__("datetime").datetime.utcnow().strftime("%Y-%m-%d")
     conn = db._conn()
+    display_industry_counts: dict[str, int] = {}
 
-    for rank, (symbol, composite) in enumerate(list(scores.items())[:top_n], 1):
-        # Query individual factor scores
+    for rank, symbol in enumerate(selected[:top_n], 1):
+        composite = scores[symbol]
         row = conn.execute(
-            "SELECT momentum_score, value_score, quality_score FROM factor_scores "
-            "WHERE symbol=? AND date=? ORDER BY rowid DESC LIMIT 1",
+            "SELECT momentum_score, value_score, quality_score, sentiment_score, macro_score "
+            "FROM factor_scores WHERE symbol=? AND date=? ORDER BY rowid DESC LIMIT 1",
             (symbol, today)
         ).fetchone()
 
-        mom = f"{row['momentum_score']:.3f}" if row and row['momentum_score'] is not None else "—"
-        val = f"{row['value_score']:.3f}" if row and row['value_score'] is not None else "—"
-        qual = f"{row['quality_score']:.3f}" if row and row['quality_score'] is not None else "—"
+        mom = f"{row['momentum_score']:.2f}" if row and row['momentum_score'] is not None else "—"
+        val = f"{row['value_score']:.2f}" if row and row['value_score'] is not None else "—"
+        qual = f"{row['quality_score']:.2f}" if row and row['quality_score'] is not None else "—"
+        sent = f"{row['sentiment_score']:.2f}" if row and row['sentiment_score'] is not None and row['sentiment_score'] != 0 else "—"
+        macro = f"{row['macro_score']:.2f}" if row and row['macro_score'] is not None else "—"
         industry = industry_map.get(symbol, "Unknown")
+        display_industry_counts[industry] = display_industry_counts.get(industry, 0) + 1
 
         table.add_row(
-            str(rank),
-            symbol,
-            f"{composite:.4f}",
-            mom, val, qual,
-            industry,
+            str(rank), symbol, f"{composite:.3f}",
+            mom, val, qual, sent, macro, industry,
         )
 
     console.print(table)
     db._close(conn)
+
+    # Industry distribution summary
+    console.print(f"\n[bold]Industry Distribution[/bold]")
+    for ind, count in sorted(display_industry_counts.items(), key=lambda x: -x[1]):
+        pct = count / len(selected[:top_n]) * 100
+        bar = "█" * count
+        console.print(f"  {ind:<25} {count:>2} ({pct:4.0f}%)  {bar}")
 
     # 5. Execute if requested
     if execute:

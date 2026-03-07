@@ -121,6 +121,41 @@ class TestSignalEngine(unittest.TestCase):
         )
         self.assertTrue(should, f"Should rebalance: {reason}")
 
+    def test_industry_concentration_limit_enforced(self):
+        """Industry cap should limit stocks from same industry during selection."""
+        # 40 stocks across 4 industries (10 each), top stocks heavily in Tech
+        scores = {f"SYM{i}": 1.0 - i * 0.01 for i in range(40)}
+        industries = ["Tech", "Healthcare", "Finance", "Energy"]
+        industry_map = {f"SYM{i}": industries[i % 4] for i in range(40)}
+
+        targets = self.engine.generate_rebalance_targets(
+            scores, 100_000.0, industry_map=industry_map,
+        )
+
+        # Count per industry
+        counts = {}
+        for s in targets:
+            ind = industry_map[s]
+            counts[ind] = counts.get(ind, 0) + 1
+
+        # max_per_industry = int(25 * 0.20) = 5
+        for ind, count in counts.items():
+            self.assertLessEqual(count, 5, f"{ind} should be capped at 5")
+        self.assertGreaterEqual(len(targets), MIN_POSITIONS)
+
+    def test_negative_quality_excluded(self):
+        """Stocks with negative quality z-score should be excluded."""
+        scores = {f"SYM{i}": 1.0 - i * 0.01 for i in range(30)}
+        # Top 10 stocks have negative quality
+        quality_scores = {f"SYM{i}": -0.5 if i < 10 else 0.5 for i in range(30)}
+
+        targets = self.engine.generate_rebalance_targets(
+            scores, 100_000.0, quality_scores=quality_scores,
+        )
+
+        for sym in targets:
+            self.assertGreaterEqual(quality_scores[sym], 0, f"{sym} has negative quality")
+
     def test_rebalance_cadence_enforced(self):
         """Should not rebalance within the interval period."""
         from datetime import datetime
