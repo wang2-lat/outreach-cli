@@ -51,7 +51,7 @@ class QualityFactor:
 
         # ROE: higher is better
         if df["roe"].notna().sum() > 0:
-            df["roe_score"] = df["roe"].rank(ascending=False, pct=True)
+            df["roe_score"] = df["roe"].rank(ascending=True, pct=True)
             rank_cols.append("roe_score")
 
         # Debt-to-equity: lower is better
@@ -62,12 +62,12 @@ class QualityFactor:
 
         # Earnings stability: higher is better
         if df["earnings_stability"].notna().sum() > 0:
-            df["stab_score"] = df["earnings_stability"].rank(ascending=False, pct=True)
+            df["stab_score"] = df["earnings_stability"].rank(ascending=True, pct=True)
             rank_cols.append("stab_score")
 
         # Cash flow to assets: higher is better
         if df["ocf_to_assets"].notna().sum() > 0:
-            df["ocf_score"] = df["ocf_to_assets"].rank(ascending=False, pct=True)
+            df["ocf_score"] = df["ocf_to_assets"].rank(ascending=True, pct=True)
             rank_cols.append("ocf_score")
 
         if not rank_cols:

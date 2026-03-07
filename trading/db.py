@@ -30,7 +30,7 @@ class TradingDatabase:
 
     def _close(self, conn: sqlite3.Connection):
         if self.db_path != ":memory:":
-            self._close(conn)
+            conn.close()
 
     def _init_db(self):
         conn = self._conn()
