@@ -8,6 +8,10 @@ app = typer.Typer(help="Track and optimize your community outreach efforts")
 console = Console()
 db = Database()
 
+# Register trading sub-app
+from trading.cli import trading_app
+app.add_typer(trading_app, name="trading")
+
 @app.command()
 def add(
     url: str = typer.Argument(..., help="Post URL with UTM parameters"),
